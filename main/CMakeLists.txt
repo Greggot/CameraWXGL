@@ -59,7 +59,6 @@ INCLUDE_DIRS
 
 "./inc"
 "./lib/common/" 
-"./lib/SD/inc/"
 # "./lib/ServiceProtocol/" 
 )
 
