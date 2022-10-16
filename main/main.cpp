@@ -74,6 +74,8 @@ static esp_err_t init_camera()
     return ESP_OK;
 }
 
+#define newstamp "new"
+
 extern "C" void app_main(void)
 {
     nvs_flash_init();
@@ -105,6 +107,7 @@ extern "C" void app_main(void)
         NetReporter.Notify(WiFi::Status::STAconnectSuccessful);
     });
 
+    static uint8_t tcpwindow[1440];
     static TCP::Address address;
     sta.add(IP_EVENT, IP_EVENT_STA_GOT_IP, [](void*, esp_event_base_t, int32_t, void*){
         printf("Connecting to %u.%u.%u.%u:%u\n", address.IP[0],address.IP[1],address.IP[2],address.IP[3], 
@@ -125,13 +128,18 @@ extern "C" void app_main(void)
                     printf("Picture taken! Its size was: %zu bytes\n", pic->len);
                     esp_camera_fb_return(pic);
                 
-                    // printf("Image data: ");
-                    // for(size_t i = 0; i < pic->len; ++i)
-                    //     printf("%02X ", pic->buf[i]);
-                    // printf("\n");
+                    TCP.Send(newstamp, sizeof(newstamp));
+                    vTaskDelay(150 / portTICK_RATE_MS);
 
-                    TCP.Send(pic->buf, pic->len);
-                    vTaskDelay(5000 / portTICK_RATE_MS);
+                    int i = 0;
+                    for(; i < pic->len - 1400; i += 1400)
+                    {
+                        memcpy(tcpwindow, &pic->buf[i], 1400);
+                        TCP.Send(tcpwindow, 1400);
+                        vTaskDelay(20 / portTICK_RATE_MS);
+                    }
+                    memcpy(tcpwindow, &pic->buf[i], pic->len - i);
+                    TCP.Send(tcpwindow, pic->len - i);
                 }
             }, "CameraThread", 3096, nullptr, 0, nullptr);
         }
