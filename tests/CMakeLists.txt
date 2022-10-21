@@ -7,7 +7,6 @@ add_executable(test main.cpp)
 set(NetworkLibPath ... CACHE PATH "path to Network lib")
 set(ProjectPath ... CACHE PATH "path to tested project")
 
-include_directories(${UDSlibPath}/inc)
 include_directories(${NetworkLibPath}/inc)
 include_directories(${ProjectPath}/inc)
 
