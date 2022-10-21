@@ -1,16 +1,4 @@
 #pragma once
-
-#define @Config@
-
-#define Butterfly true
-#define Mother false
-
-#define DEVICE @Device@
-#define DEVICE_STRING "@Device@"
-
-#define MODEL_NAME "@ECU@"
-#define MANUFAC_INFO "@ECU@"
-
 #define LED_BLE_CONNECT @LED_BLE_CONNECT@
 #define LED_WIFI_CONNECT @LED_WIFI_CONNECT@
 
