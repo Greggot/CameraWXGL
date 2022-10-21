@@ -18,7 +18,7 @@ SRCS
 ${ble}
 
 "${NET}/src/WiFi/STA.cpp"
-"${NET}/src/TCP/TCP.client.cpp"
+"./src/Camera/AIThinker.cpp"
 
 # Application
 # "./src/Diagnostic.${Device}.cpp"
