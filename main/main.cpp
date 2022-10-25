@@ -46,31 +46,28 @@ extern "C" void app_main(void)
         cameramodule.write(&ptr[pos.start], pos.length); 
     });
 
+    static const size_t winlen = 320 * 4;
     static uint8_t tcpwindow[1440];
     cameramodule.setRX([](const void*, size_t){
         camera.TakePicture();
         ptr = (uint8_t*)camera.picture();
         picsize = camera.size();
-        printf("Taken picture, size(%u)...\n", camera.size());
+        printf("Taken picture, size(%u)...\n", picsize);
 
         struct position {
             size_t start;
             size_t length;
         };
-        for(position pos{0, 320 * 4}; pos.start < picsize; pos.start += pos.length )
+        for(position pos{0, winlen}; pos.start < picsize; pos.start += pos.length )
         {
             memcpy(tcpwindow, &pos, sizeof(pos));
             memcpy(tcpwindow + sizeof(pos), &ptr[pos.start], pos.length);
-
             udpclient.Send(tcpwindow, sizeof(pos) + pos.length);
-            // cameramodule.write(tcpwindow, sizeof(pos) + pos.length);
-            // vTaskDelay(pdMS_TO_TICKS(25));
         }
         #define testmessage "test"
         cameramodule.write(testmessage, sizeof(testmessage));
     });
 
-    
     sta.add(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
     [](void*, esp_event_base_t, int32_t, void*){
         // BLE wasn't disabled - it means unsuccessfull IP_EVENT_STA_GOT_IP finish
