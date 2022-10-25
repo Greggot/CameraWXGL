@@ -5,23 +5,23 @@
 
 namespace Compression
 {
-	typedef uint8_t rle_t;
+	using rle_t = uint16_t;
 
 	union RLEHeader
 	{
-		rle_t raw;
+		uint8_t raw;
 		struct _bit
 		{
-			rle_t length : 7;
-			rle_t repeated : 1;
+			uint8_t length : 7;
+			uint8_t repeated : 1;
 		} bit;
 
-		RLEHeader(bool repeated, rle_t length){
+		RLEHeader(bool repeated, uint8_t length){
 			bit.repeated = repeated;
 			bit.length = length;
 		}
 		RLEHeader() { raw = 0; }
-		RLEHeader(rle_t value) { raw = value; }
+		RLEHeader(uint8_t value) { raw = value; }
 
 	};
 

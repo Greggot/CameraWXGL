@@ -33,7 +33,7 @@ static inline bool headerIsOverflowed(const RLEHeader& header)
 */
 size_t Compression::RLE(void* destination, const void* source, size_t size)
 {
-	uint8_t* src = (uint8_t*)source;
+	rle_t* src = (rle_t*)source;
 	uint8_t* dst = (uint8_t*)destination;
 
 	RLEHeader* header;
@@ -44,7 +44,8 @@ size_t Compression::RLE(void* destination, const void* source, size_t size)
 	{
 		if (src[i] != src[i + 1])
 		{
-			dst[index++] = src[i];
+			memcpy(&dst[index], &src[i], sizeof(rle_t));
+			index += sizeof(rle_t);
 			++header->bit.length;
 			if (headerIsOverflowed(*header))
 				FinishSequence(&header, dst, index, original);
@@ -54,15 +55,17 @@ size_t Compression::RLE(void* destination, const void* source, size_t size)
 			if (header->bit.length)
 				FinishSequence(&header, dst, index, original);
 			
-			uint8_t byte = src[i];
-			dst[index++] = byte;
-			while (src[i++] == byte)
+			rle_t value = src[i];
+			memcpy(&dst[index], &value, sizeof(rle_t));
+			index += sizeof(rle_t);
+			while (src[i++] == value)
 			{
 				++header->bit.length;
 				if (headerIsOverflowed(*header))
 				{
 					FinishSequence(&header, dst, index, repeated);
-					dst[index++] = byte;
+					memcpy(&dst[index], &value, sizeof(rle_t));
+					index += sizeof(rle_t);
 				}
 			}
 			i -= 2;
@@ -70,17 +73,14 @@ size_t Compression::RLE(void* destination, const void* source, size_t size)
 			if (header->bit.length)
 				FinishSequence(&header, dst, index, repeated);
 		}
-
-		if (index >= size - sizeof(RLEHeader))
-			return index;
 	}
-	return index - sizeof(RLEHeader);
+	return index - sizeof(rle_t);
 }
 
 size_t Decompression::RLE(void* destination, const void* source, size_t size)
 {
 	uint8_t* src = (uint8_t*)source;
-	uint8_t* dst = (uint8_t*)destination;
+	rle_t* dst = (rle_t*)destination;
 
 	size_t i = 0;
 	size_t j = 0;
@@ -89,11 +89,14 @@ size_t Decompression::RLE(void* destination, const void* source, size_t size)
 	while (i < size)
 	{
 		memcpy(&header, &src[i++], sizeof(header));
-		uint8_t byte = src[i];
 		while (header.bit.length--)
-			dst[j++] = header.bit.repeated ? byte : src[i++];
+		{
+			memcpy(&dst[j++], &src[i], sizeof(rle_t));
+			if(!header.bit.repeated)
+				i += sizeof(rle_t);
+		}
 		if(header.bit.repeated)
-			++i;
+			i += sizeof(rle_t);
 	}
 	return j;
 }
