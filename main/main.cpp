@@ -6,54 +6,38 @@
 #include <WiFi/STA.hpp>
 
 #include <Camera/Camera.hpp>
-#include <SkyBlue/Module.hpp>
-#include <SkyBlue/API.hpp>
+
+#include <SkyBlue/Device.hpp>
+#include <SkyBlue/Collector.hpp>
+#include <SkyBlue/InterfaceTraits.hpp>
 
 extern "C" void app_main(void)
 {
     nvs_flash_init();
 
-    static TCP::client TCP;
-    static TCP::server tcpserver;
-    static UDP::client udpclient;
     static WiFi::STA sta;
-
     static auto NetReporter = BLE::Characteristic(0x4ED, BLE::permition::Write, BLE::property::Write | BLE::property::Notify);
-    static auto NetworkController = BLE::Service(0xDCBC, {&NetReporter});
+    static auto NetworkController = BLE::Service(0xDCBC, { &NetReporter });
 
     std::string name = "CameraWXGL";
     static BLE::Server server(name.c_str(), { &NetworkController });
     BLE::Server::Enable();
 
     static Camera::AIThinker camera(PIXFORMAT_RGB565, FRAMESIZE_QVGA);
-    static SkyBlue::TCPserverModule cameramodule({0, SkyBlue::type_t::camera}, tcpserver);
-    static SkyBlue::TCPserverModule theta({0, SkyBlue::type_t::rotorservo}, tcpserver);
-    static SkyBlue::TCPserverModule omega({1, SkyBlue::type_t::rotorservo}, tcpserver);
-    static SkyBlue::TCPserverModule hand({0, SkyBlue::type_t::linearservo}, tcpserver);
-
-    static SkyBlue::TCPserverAPI api({&cameramodule, &theta, &omega, &hand}, tcpserver);
+    static SkyBlue::TCPserverDevice device;
+    static UDP::client udpclient;
     
-    static uint8_t* ptr;
-    static size_t picsize = 0;
-    cameramodule.setTX([](const void* data, size_t size){
-        struct position {
-            size_t start;
-            size_t length;
-        };
-        position pos = *(position*)data;
-        if(pos.start + pos.length > picsize)
-            return;
-        cameramodule.write(&ptr[pos.start], pos.length); 
-    });
-
-    static const size_t winlen = 320 * 4;
-    static uint8_t tcpwindow[1440];
-    cameramodule.setRX([](const void*, size_t){
+    // TODO: add class MyCameraModule : public SkyBlue::Module, which will define R/W callbacks
+    //      automatically
+    auto cameramodule = new SkyBlue::Module;
+    cameramodule->setRead([](const SkyBlue::ID& id, const void*, size_t){
         camera.TakePicture();
-        ptr = (uint8_t*)camera.picture();
-        picsize = camera.size();
+        auto ptr = (uint8_t*)camera.picture();
+        auto picsize = camera.size();
         printf("Taken picture, size(%u)...\n", picsize);
 
+        static const size_t winlen = 320 * 4;
+        static uint8_t tcpwindow[1440];
         struct position {
             size_t start;
             size_t length;
@@ -64,9 +48,25 @@ extern "C" void app_main(void)
             memcpy(tcpwindow + sizeof(pos), &ptr[pos.start], pos.length);
             udpclient.Send(tcpwindow, sizeof(pos) + pos.length);
         }
-        #define testmessage "test"
-        cameramodule.write(testmessage, sizeof(testmessage));
+        device.write(id, nullptr, 0);
     });
+
+    auto rotormodule = new SkyBlue::Module;
+    rotormodule->setWrite([](const SkyBlue::ID& id, const void* data, size_t){
+        struct vertex{
+            float x; float y; float z;
+        };
+        vertex input;
+        memcpy(&input, data, sizeof(vertex));
+        printf("Rotor %u received vertex x:%.2f, y:%.2f, z:%.2f\n", id.number, 
+            input.x, input.y, input.z);
+    });
+
+    // TODO: add static array of ids to increment it automatically
+    //      and `add(type_t, Module*)` polymorph method
+    device.add({0, SkyBlue::type_t::camera}, cameramodule);
+    device.add({0, SkyBlue::type_t::rotorservo}, rotormodule);
+    device.add({1, SkyBlue::type_t::rotorservo}, rotormodule);
 
     sta.add(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
     [](void*, esp_event_base_t, int32_t, void*){
@@ -99,12 +99,12 @@ extern "C" void app_main(void)
         WiFi::STA::TurnOnFullPower();
 
         // Start server, begin work after first connection
-        tcpserver.Start(address);
-        tcpserver.Accept();
+        // SkyBlue::TCPserverDevice::_connect(address);
+        device.connect(address);
+        device.listen();
         printf("  Client connected!\n");
         
         udpclient.Connect({{192, 168, 1, 134}, 5555});
-        api.start();
     });
 
     // Acquire ssid-password ip:port to work with
