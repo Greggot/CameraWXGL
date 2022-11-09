@@ -107,6 +107,10 @@ namespace SkyBlue
 
 			return idvector;
 		}
+		template<class sendtype>
+		void write(ID id, const sendtype& data){
+			write(id, &data, sizeof(sendtype));
+		}
 		void write(ID id, const void* data, unsigned int length) {
 			collector::tx.id = id;
 			collector::tx.command = command_t::write;
