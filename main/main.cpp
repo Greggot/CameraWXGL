@@ -23,7 +23,8 @@ extern "C" void app_main(void)
     static BLE::Server server(name.c_str(), { &NetworkController });
     BLE::Server::Enable();
 
-    static Camera::AIThinker camera(PIXFORMAT_RGB565, FRAMESIZE_QVGA);
+    // static Camera::AIThinker camera(PIXFORMAT_RGB565, FRAMESIZE_QVGA);
+    static Camera::AIThinker camera(PIXFORMAT_JPEG, FRAMESIZE_QVGA);
     static SkyBlue::TCPserverDevice device;
     static UDP::client udpclient;
     
@@ -51,6 +52,33 @@ extern "C" void app_main(void)
         device.write(id, nullptr, 0);
     });
 
+    auto jpgcameramodule = new SkyBlue::Module;
+    jpgcameramodule->setRead([](const SkyBlue::ID& id, const void*, size_t){
+        camera.TakePicture();
+        auto ptr = (uint8_t*)camera.picture();
+        auto picsize = camera.size();
+
+        static const size_t winlen = 320 * 4;
+        static uint8_t tcpwindow[1440];
+        struct position {
+            size_t start;
+            size_t length;
+        };
+        int checksum = 0;
+        for(size_t i = 0; i < picsize; ++i)
+            checksum += ptr[i];
+        for(position pos{0, winlen}; pos.start < picsize; pos.start += pos.length )
+        {
+            if(picsize - pos.start < pos.length)
+                pos.length = picsize - pos.start;
+
+            memcpy(tcpwindow, &pos, sizeof(pos));
+            memcpy(tcpwindow + sizeof(pos), &ptr[pos.start], pos.length);
+            udpclient.Send(tcpwindow, sizeof(pos) + pos.length);
+        }
+        device.write(id, checksum);
+    });
+
     auto rotormodule = new SkyBlue::Module;
     rotormodule->setWrite([](const SkyBlue::ID& id, const void* data, size_t){
         struct vertex{
@@ -64,7 +92,7 @@ extern "C" void app_main(void)
 
     // TODO: add static array of ids to increment it automatically
     //      and `add(type_t, Module*)` polymorph method
-    device.add({0, SkyBlue::type_t::camera}, cameramodule);
+    device.add({0, SkyBlue::type_t::camera}, jpgcameramodule);
     device.add({0, SkyBlue::type_t::rotorservo}, rotormodule);
     device.add({1, SkyBlue::type_t::rotorservo}, rotormodule);
 
