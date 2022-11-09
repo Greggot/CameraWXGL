@@ -20,19 +20,14 @@ ${ble}
 "${NET}/src/WiFi/STA.cpp"
 "./src/Camera/AIThinker.cpp"
 
-# Application
-# "./src/Diagnostic.${Device}.cpp"
-# "./src/Diagnostic.Rubber-Sack.cpp"
 # common
 "./lib/common/debug.cpp"
-"./src/Compression.cpp"
 
 INCLUDE_DIRS 
 "${BLE}/inc" "${NET}/inc"
 
 "./inc"
 "./lib/common/" 
-# "./lib/ServiceProtocol/" 
 )
 
 configure_file("./inc/build.h.in" ${CMAKE_CURRENT_SOURCE_DIR}/inc/build.h @ONLY)
