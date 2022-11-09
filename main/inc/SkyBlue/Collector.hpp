@@ -19,12 +19,6 @@ namespace SkyBlue
 		void transmit(const void* data, size_t size){
             tx.length = size;
             memcpy(tx.data, data, tx.length);
-
-            printf("  Send %u bytes: ", tx.length + BUFFER_HEADER_SiZE());
-            for(size_t i = 0; i < tx.length; ++i)
-                printf("%02X ", tx.data[i]);
-            printf("\n");
-
             intrfc::send(&tx, tx.length + BUFFER_HEADER_SiZE());
         }
 	};

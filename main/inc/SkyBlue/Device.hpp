@@ -39,7 +39,6 @@ namespace SkyBlue
 		}
 
 		void Execute() {
-			printf(" Received message for %s-%u\n", typeToString(collector::rx.id.type), collector::rx.id.number);
 			auto res = modules.find(collector::rx.id);
 			if (res == modules.end())
 				return;
