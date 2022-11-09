@@ -46,6 +46,10 @@ public:
         client = server.Accept();
         printf("Client: %u\n", client);
     }
+    TCP::Address otherside() { 
+        const auto& addr = server.ClientAddress(client);
+        return TCP::Address{addr.sin_addr.s_addr, addr.sin_port};
+    }
     void disconnect() {
         server.Close(client);
     }

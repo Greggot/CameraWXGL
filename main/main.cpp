@@ -89,8 +89,7 @@ extern "C" void app_main(void)
     static TCP::Address address;
     sta.add(IP_EVENT, IP_EVENT_STA_GOT_IP, [](void*, esp_event_base_t, int32_t, void* data){        
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) data;
-        memcpy(address.IP, &event->ip_info.ip, 4);
-        address.Port = 4444;
+        address = {event->ip_info.ip.addr, 4444};
         printf("Starting %u.%u.%u.%u:%u\n", address.IP[0],address.IP[1],address.IP[2],address.IP[3], 
             address.Port);
 
@@ -99,12 +98,12 @@ extern "C" void app_main(void)
         WiFi::STA::TurnOnFullPower();
 
         // Start server, begin work after first connection
-        // SkyBlue::TCPserverDevice::_connect(address);
         device.connect(address);
         device.listen();
-        printf("  Client connected!\n");
+        auto client = device.otherside();
+        printf("  Client connected! %u.%u.%u.%u\n", client.IP[0], client.IP[1], client.IP[2], client.IP[3]);
         
-        udpclient.Connect({{192, 168, 1, 134}, 5555});
+        udpclient.Connect({client.IP, 5555});
     });
 
     // Acquire ssid-password ip:port to work with
